@@ -93,7 +93,8 @@ class EvaluateRegression:
             'PLSCanonical': (PLSCanonical(), 'Decomposition'),
             'DummyRegressor': (DummyRegressor(), 'Baseline')
         }
-        self.score_df = pd.DataFrame(columns=['Model', 'Group', 'Train_RMSE', 'Val_RMSE', 'File'])
+        self.columns = ['Model', 'Group', 'Train_RMSE', 'Val_RMSE', 'File']
+        self.score_df = pd.DataFrame(columns=self.columns)
         self.ignore_list = []
 
     def set_ignore_list(self, models_to_ignore):
