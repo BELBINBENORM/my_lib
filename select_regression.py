@@ -3,6 +3,9 @@ import re
 import gc
 import joblib
 import shutil
+import time
+import psutil
+import multiprocessing
 import pandas as pd
 import warnings
 from sklearn.metrics import root_mean_squared_error
@@ -35,6 +38,19 @@ from sklearn.isotonic import IsotonicRegression
 from sklearn.dummy import DummyRegressor
 from sklearn.cross_decomposition import CCA, PLSRegression, PLSCanonical
 
+def train_worker(model, X, y, return_dict):
+    """
+    Independent worker function. 
+    Required to be outside the class for multiprocessing pickling.
+    """
+    try:
+        model.fit(X, y)
+        return_dict['model'] = model
+        return_dict['success'] = True
+    except Exception as e:
+        return_dict['success'] = False
+        return_dict['error'] = str(e)
+        
 class EvaluateRegression:
     def __init__(self):
         # Full Catalog (No CV models)
@@ -124,54 +140,86 @@ class EvaluateRegression:
         self.score_df = pd.DataFrame(data)
         if not self.score_df.empty:
             self.score_df = self.score_df.sort_values('Val_RMSE').reset_index(drop=True)
-        return self.score_df
+        
 
     def evaluate(self, X_train, X_val, y_train, y_val):
-        """Runs the training loop, skipping existing models in self.score_df"""
+        """Runs training loop with Active Kill for Time and RAM Guarding."""
+        # Ensure the scoreboard is fresh before starting
+        self.refresh_score_df()
         print(f"🚀 Marathon Started. Current Progress: {len(self.score_df)} models found.\n")
         
+        RAM_LIMIT_GB = 10.0
+        TIME_LIMIT_SEC = 15 * 60  # 900 seconds
+    
         for name, (model, group) in self.catalog.items():
-
-            # Check if model is in Ignore List
+            # 1. Skip if Ignored or Already Done
             if name in self.ignore_list:
                 print(f"🚫 {name:30} [Ignored by User  ]")
                 continue
-
+    
             if name in self.score_df['Model'].values:
                 print(f"⏩ {name:30} [Already Evaluated]")
                 continue
-
+    
+            # 2. RAM Guard
+            current_ram = psutil.virtual_memory().used / (1024**3)
+            if current_ram > RAM_LIMIT_GB:
+                print(f"⚠️ {name:30} [Ignored High RAM ] ({current_ram:.1f}GB)")
+                continue
+    
+            start_time = time.time()
+            print(f"⏸️ {name:30} [", end="", flush=True)
+    
+            # 3. Active Time Killing via Multiprocessing
+            manager = multiprocessing.Manager()
+            return_dict = manager.dict()
+            
+            p = multiprocessing.Process(target=train_worker, args=(model, X_train, y_train, return_dict))
+            p.start()
+            p.join(timeout=TIME_LIMIT_SEC)
+    
+            if p.is_alive():
+                p.terminate()  # STOP MODEL IMMEDIATELY
+                p.join()
+                print(f"❌ Ignored High Run Time ]")
+                manager.shutdown()
+                continue
+    
+            if not return_dict.get('success', False):
+                err = return_dict.get('error', 'Unknown Error')
+                print(f"❌ Fit Failed: {str(err)[:25]} ]")
+                manager.shutdown()
+                continue
+    
+            # 4. Success: Retrieve and Score
+            fitted_model = return_dict['model']
+    
             try:
-                print(f"⏸️ {name:30} [⭐", end="", flush=True)
-                
-                model.fit(X_train, y_train)
-                print("⭐", end="", flush=True) # Fit
-                
-                t_p = model.predict(X_train)
+                t_p = fitted_model.predict(X_train)
                 t_rmse = round(root_mean_squared_error(y_train, t_p), 4)
-                del t_p # Clean predictions immediately
-                print("⭐", end="", flush=True) # Train Pred
-                
-                v_p = model.predict(X_val)
+                del t_p
+    
+                v_p = fitted_model.predict(X_val)
                 v_rmse = round(root_mean_squared_error(y_val, v_p), 4)
-                del v_p # Clean predictions immediately
-                print("⭐", end="", flush=True) # Val Pred
-                
+                del v_p
+    
                 fname = f"{name}_{t_rmse}_{v_rmse}.joblib"
-                joblib.dump(model, fname)
-                print("⭐", end="", flush=True) # Save
+                joblib.dump(fitted_model, fname)
+    
+                # Update your results DataFrame
+                new_row = {"Model": name, "Group": group, "Train_RMSE": t_rmse, "Val_RMSE": v_rmse, "File": fname}
+                self.score_df = pd.concat([self.score_df, pd.DataFrame([new_row])], ignore_index=True)
                 
-                print(f"  ✅]")
-                
-                
+                elapsed = round(time.time() - start_time, 1)
+                print(f" ✅ Complected ] ({elapsed}s)")
+    
             except Exception as e:
-                print(f" ❌ Skip: {str(e)[:25]}")
-
+                print(f" ❌ Scoring Error: {str(e)[:20]} ]")
+            
             finally:
+                manager.shutdown()
                 gc.collect()
-        
-        return 
-
+    
     def inspection(self, model_name_or_file):
         """Inspects a model by name from the DF or by specific filename."""
         target = model_name_or_file
