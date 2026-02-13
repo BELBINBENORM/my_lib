@@ -136,12 +136,8 @@ class EvaluateRegression:
                     'Train_RMSE': float(t_rmse), 'Val_RMSE': float(v_rmse), 
                     'File': file
                 })
-        
-        self.score_df = pd.DataFrame(data)
-        if not self.score_df.empty:
-            self.score_df = self.score_df.sort_values('Val_RMSE').reset_index(drop=True)
-        else:
-            self.score_df = pd.DataFrame(columns=self.columns)
+        df = pd.DataFrame(data).reindex(columns=self.columns)
+        self.score_df = df.sort_values("Val_RMSE").reset_index(drop=True)
 
     def evaluate(self, X_train, X_val, y_train, y_val):
         """Runs training loop with Active Kill for Time and RAM Guarding."""
