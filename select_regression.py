@@ -140,7 +140,8 @@ class EvaluateRegression:
         self.score_df = pd.DataFrame(data)
         if not self.score_df.empty:
             self.score_df = self.score_df.sort_values('Val_RMSE').reset_index(drop=True)
-        
+        else:
+            self.score_df = pd.DataFrame(columns=self.columns)
 
     def evaluate(self, X_train, X_val, y_train, y_val):
         """Runs training loop with Active Kill for Time and RAM Guarding."""
