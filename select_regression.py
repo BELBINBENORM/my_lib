@@ -112,7 +112,16 @@ class EvaluateRegression:
         self.columns = ['Model', 'Group', 'Train_RMSE', 'Val_RMSE', 'File']
         self.score_df = pd.DataFrame(columns=self.columns)
         self.ignore_list = []
+        self.methods()
 
+    def methods(self):
+        print("set_ignore_list(list)                   : Sets a list of model names to skip")
+        print("evaluate(X_train, X_val, y_train, y_val): Runs training loop")
+        print("score()                                 : Returns evaluation score")
+        print("inspection(model_name_or_file)          : Can Inspect the Regression model")
+        print("cleanup_models()                        : Delete ALL saved Regression models")
+        print("zip_models(zip_name)                    : Zip ALL saved Regression models")
+        
     def set_ignore_list(self, models_to_ignore):
         """Sets a list of model names to skip during the marathon."""
         if isinstance(models_to_ignore, list):
