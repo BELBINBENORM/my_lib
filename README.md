@@ -1,99 +1,73 @@
-## select_regression.py — README
+## 🏆 Evaluate Regression ML
+**An AutoML-lite Marathon Engine for Scikit-Learn Regressors**
 
-Overview
-- A compact utility that runs a "model marathon" over a broad catalog of scikit-learn regressors, saves trained models to .joblib files named by their train/validation RMSE, and provides simple inspection, cleanup and zipping helpers.
-- Main entrypoint: EvaluateRegression — a class that organizes the catalog, runs training/evaluation, and manages discovered saved models.
+Developed by **BELBIN BENO RM**
 
-Key features
-- Large built-in catalog of regression estimators (linear, robust, Bayesian, tree/ensemble, SVM, neighbors, GLM, neural net, decompositions, baseline).
-- Automatic saving of trained models to filename pattern: ModelName_{Train_RMSE}_{Val_RMSE}.joblib
-- Maintains a pandas DataFrame (score_df) of discovered models (scanned from current directory).
-- Helpers:
-  - set_ignore_list(models_to_ignore) ��� skip specific catalog items
-  - refresh_score_df() — scan current dir for .joblib files matching the naming pattern
-  - evaluate(X_train, X_val, y_train, y_val) — fit catalog models (skips ones already present or ignored), compute train/val RMSE and save models
-  - inspection(model_name_or_file) — load & print model class and params
-  - cleanup_models() — prompt & delete all .joblib files
-  - zip_models(zip_name="zipped_model") — package all discovered .joblib files into a zip
+**Evaluate Regression** is a high-speed model selection framework designed to automate the evaluation of over 30+ regression models simultaneously. It spans a massive catalog including Linear, Robust, Bayesian, Ensemble, and Neural Network architectures while ensuring system stability through active resource management.
 
-Requirements
-- Python 3.8+
-- pandas
-- scikit-learn (version compatible with the used estimators and metrics)
-- joblib
-- (standard library modules used: os, re, gc, shutil, warnings)
+---
 
-Notes about scikit-learn compatibility
-- The script imports many estimators — availability depends on the scikit-learn version. Some estimators or metrics names (e.g., root_mean_squared_error) may require scikit-learn >= a specific version. If you hit import errors, upgrade scikit-learn: pip install -U scikit-learn
-- Warnings from sklearn ConvergenceWarning and UserWarning are suppressed for cleaner output.
+## ✨ Key Features
 
-Filename pattern and scanning
-- Saved model filenames follow the regex: (.+)_([0-9\.eE\+\-]+)_([0-9\.eE\+\-]+)\.joblib
-  - i.e., ModelName_trainRMSE_valRMSE.joblib
-- refresh_score_df() scans the current working directory for files matching that pattern, extracts model name, train RMSE and val RMSE, maps model to a group (catalog grouping), and builds a DataFrame sorted by Val_RMSE.
+* **🏎️ Model Marathon:** Automatically fits and evaluates a broad spectrum of estimators—from standard OLS to specialized GLMs and Decompositions.
+* **🛡️ Active Resource Guarding:** Features an "Active Kill" system that terminates worker processes exceeding a 15-minute time limit or a 10GB RAM threshold.
+* **💾 Performance Persistence:** Automatically persists every successful model as a `.joblib` file tagged with metric-based filenames: `Model_TrainRMSE_ValRMSE.joblib`.
+* **📊 Live Leaderboard:** Maintains a real-time `score_df` (pandas DataFrame) sorted by **Validation RMSE** for instant performance comparison.
+* **🛠️ Lifecycle Management:** Integrated helpers for model inspection, interactive directory cleanup, and zipping results for deployment.
 
-API / Method summary
+---
 
-- EvaluateRegression()
-  - Initializes the model catalog and an empty score_df.
+## 🚀 Basic Usage
 
-- set_ignore_list(models_to_ignore)
-  - models_to_ignore: list of strings matching keys in the catalog
-  - Stores an ignore list used by evaluate() to skip models.
+### Notebook Installation (Kaggle / Colab / Jupyter)
 
-- refresh_score_df() -> pandas.DataFrame
-  - Scans current dir for .joblib files matching the file-name pattern and returns the DataFrame with columns: Model, Group, Train_RMSE, Val_RMSE, File.
+```python
+!pip install -q git+https://github.com/BELBINBENORM/evaluate-regression-ml.git
+```
+---
+### 🏃 Execution Example
 
-- evaluate(X_train, X_val, y_train, y_val)
-  - Trains each catalog model (unless ignored or already present in score_df), computes train/val RMSE, saves model to .joblib using the naming convention.
-  - Uses sklearn estimators' fit and predict methods.
-  - Exceptions during training are caught; garbage collection runs in finally.
+```python
+from Evaluate_Regression import EvaluateRegression
 
-- inspection(model_name_or_file)
-  - Accepts either a model name (e.g., "RandomForest") present in score_df or a direct joblib filename. Loads the saved model and prints its class and parameters.
+# 1. Initialize the engine [cite: 10]
+eval_reg = EvaluateRegression()
 
-- cleanup_models()
-  - Prompts the user to confirm and deletes all .joblib files in the current directory. Afterwards refreshes score_df.
+# 2. Run the Marathon [cite: 10, 11]
+# Fits and saves models not already present in your directory [cite: 13, 17]
+eval_reg.evaluate(X_train, X_val, y_train, y_val)
 
-- zip_models(zip_name="zipped_model")
-  - Copies discovered .joblib files to a temporary directory and creates zip_name.zip in the current directory. Replaces existing zip if present.
+# 3. View the Leaderboard [cite: 11, 16]
+df = eval_reg.score()
+print(df.head())
 
-Basic usage example
-- Example: train a catalog over already-split train/val sets (X_train, X_val, y_train, y_val):
+# 4. Inspect a specific model [cite: 11, 33]
+eval_reg.inspection("RandomForest")
+```
+---
+## 📊 Evaluation Output
 
-  from select_regression import EvaluateRegression
+When calling `eval_reg.score()`, you get a detailed snapshot of your experiment, automatically sorted by the lowest **Val_RMSE**:
 
-  evalr = EvaluateRegression()
+| Model | Group | Train_RMSE | Val_RMSE | File |
+| :--- | :--- | :--- | :--- | :--- |
+| **HistGradientBoosting** | Ensemble | 1.2405 | 1.5621 | HistGradientBoosting_1.2405_1.5621.joblib |
+| **RandomForest** | Ensemble | 0.8920 | 1.6110 | RandomForest_0.892_1.611.joblib |
+| **BayesianRidge** | Bayesian | 1.8500 | 1.9210 | BayesianRidge_1.85_1.921.joblib |
 
-  ### Optionally skip some slow/undesired models
-  evalr.set_ignore_list(['GaussianProcessRegressor', 'KernelRidge'])
+---
 
-  ### If you already have saved .joblib files in the cwd, update the score DF
-  evalr.refresh_score_df()
+## 💡 Why use Evaluate Regression?
 
-  ### Run the marathon (this fits & saves models not already present)
-  evalr.evaluate(X_train, X_val, y_train, y_val)
+* **Independent Execution:** Each model is trained in an independent worker process using `multiprocessing`. If a complex model like `GaussianProcessRegressor` exceeds memory limits, it is terminated without crashing your notebook.
+* **Smart Resumption:** The engine intelligently scans your folder for existing `.joblib` files and skips models that have already been evaluated.
+* **Flexibility:** You can easily exclude slow models using `set_ignore_list(['SVR', 'GaussianProcessRegressor'])` to optimize your marathon run.
 
-  ### Re-scan to load results into the DataFrame
-  df = evalr.refresh_score_df()
-  print(df.head())
+---
 
-  # Inspect a model by name (if present in df) or full filename
-  evalr.inspection('RandomForest')
-  ### or
-  evalr.inspection('RandomForest_1.2345_1.5678.joblib')
+📬 Contact
+Author: BELBIN BENO RM
 
-  ### Zip up discovered models
-  evalr.zip_models('my_models_archive')
+Email: belbin.datascientist@gmail.com
 
-  ### Clean up (interactive prompt)
-  evalr.cleanup_models()
-
-Practical tips & caveats
-- Working directory matters: the class scans and writes files to the current working directory. Run from a dedicated folder to avoid cluttering unrelated files.
-- Some models (GaussianProcessRegressor, SVMs, etc.) can be slow or memory-heavy on larger datasets — consider adding them to the ignore list for large-scale marathons.
-- cleanup_models() permanently deletes .joblib files — use cautiously.
-- The script attempts to handle exceptions per-model so the marathon continues if one estimator fails.
-- If you want cross-validation or hyperparameter tuning, extend evaluate() to wrap models in GridSearchCV / RandomizedSearchCV before fit.
-
-
+GitHub: BELBINBENORM
