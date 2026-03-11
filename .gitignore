@@ -1,0 +1,16 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Saved Regression Models
+*.joblib
+
+# Zipped results
+*.zip
+
+# Temporary directories
+temp_models_to_zip/
+
+# Virtual Environments
+.venv/
+venv/
